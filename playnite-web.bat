@@ -55,7 +55,7 @@ if "%~1"=="dev" (
     set COMPOSE_PROJECT_NAME=playnite-web
     set MQTT_PASSWORD=playnite
     set APP_PORT=3000
-    call :DOCKER
+    call :DOCKER_START
     goto :eof
 )
 
@@ -69,7 +69,7 @@ if exist .env (
             goto :CREATE_ENV
         )
     )
-    goto :DOCKER
+    goto :DOCKER_START
 )
 
 :CREATE_ENV
@@ -95,7 +95,7 @@ if exist .env (
     echo ADDITIONAL_ORIGINS=https://shared.akamai.steamstatic.com/,%ADDITIONAL_ORIGINS%
     ) > .env
 
-:DOCKER
+:DOCKER_START
     REM set "MQTT_IMG=eclipse-mosquitto:2.0.18"
     for /f "tokens=3 delims=:" %%a in ('findstr /C:"image: eclipse-mosquitto" "%COMPOSE_FILE%"') do (
         set "VER=%%a"
