@@ -1,125 +1,122 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM Change to the script directory
-cd /d "%~dp0"
-
-REM Check if docker compose file exists, if not download it
-if not exist "playnite-web.docker-compose.yaml" (
-    REM curl -L -o playnite-web.docker-compose.yaml https://public.home.playniteweb.com/wiki/download/attachments/27525162/playnite-web.docker-compose.yaml?api=v2
-    if not exist "playnite-web.docker-compose.yaml" (
-        echo Failed to download docker compose file.
-        timeout /t 5 & exit /b 1
-    )
-    echo Downloaded docker compose file.
-)
-
-REM Handle command line arguments
-
-if "%~1"=="clean" (
-    docker compose -f playnite-web.docker-compose.yaml down >nul 2>nul
-    docker volume rm playnite-web_mqtt_config >nul 2>nul
-    docker volume rm playnite-web_mqtt_data >nul 2>nul
-    docker volume rm playnite-web_mqtt_log >nul 2>nul
-    docker volume rm playnite-web_data >nul 2>nul
-    docker volume rm playnite-web_games_assets >nul 2>nul
-    REM curl -L -o playnite-web.docker-compose.yaml https://public.home.playniteweb.com/wiki/download/attachments/27525162/playnite-web.docker-compose.yaml?api=v2
-    docker compose -f playnite-web.docker-compose.yaml pull
-    echo.
-    echo Cleaned up.
-    echo.
-    goto :CREATE_ENV
-)
-if "%~1"=="update" (
-    docker compose -f playnite-web.docker-compose.yaml down >nul 2>nul
-    REM curl -L -o playnite-web.docker-compose.yaml https://public.home.playniteweb.com/wiki/download/attachments/27525162/playnite-web.docker-compose.yaml?api=v2
-    docker compose -f playnite-web.docker-compose.yaml pull
-    docker compose -f playnite-web.docker-compose.yaml up -d
-    docker compose -f playnite-web.docker-compose.yaml ps
+if "%~1"=="help" (
+    echo Available commands: help, clean, update, remove
     goto :eof
 )
 
-REM Load environment variables from .env file if it exists
-if exist .env (
-    for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
-        if "%%a"=="DB_PASSWORD" set "DB_PASSWORD=%%b"
-        if "%%a"=="MQTT_PASSWORD" set "MQTT_PASSWORD=%%b"
-        if "%%a"=="APP_HOST" set "APP_HOST=%%b"
-        if "%%a"=="APP_PORT" set "APP_PORT=%%b"
-    )
+cd /d "%~dp0"
+
+set "COMPOSE_FILE=playnite-web.docker-compose.yaml"
+set "COMPOSE_TEMP=playnite-web.docker-compose.temp.yaml"
+set "COMPOSE_URL=https://public.home.playniteweb.com/wiki/download/attachments/27525162/playnite-web.docker-compose.yaml?api=v2"
+
+if not exist "%COMPOSE_FILE%" call :DOWNLOAD "%COMPOSE_FILE%" "%COMPOSE_URL%"
+
+if "%~1"=="clean" (
+    call :DOCKER_REMOVE
+    call :DOWNLOAD "%COMPOSE_FILE%" "%COMPOSE_URL%"
+    goto :CREATE_ENV
 )
 
-REM If PASSWORD is not set, prompt the user to create .env file
-if "%DB_PASSWORD%"=="" goto :CREATE_ENV
-if "%MQTT_PASSWORD%"=="" goto :CREATE_ENV
+if "%~1"=="update" (
+    if not exist .env goto :CREATE_ENV
+    call :DOWNLOAD "%COMPOSE_TEMP%" "%COMPOSE_URL%"
+    
+    set "MAJOR_CHANGE=false"
 
-goto :DOCKER
+    REM Check for major version changes by comparing image tags
+
+    if "!MAJOR_CHANGE!"=="true" (
+        set /p CONFIRM="Major version change detected. Perform clean install? (Y/N) "
+        if /i "!CONFIRM!"=="Y" (
+            call :DOCKER_REMOVE
+            move /y "%COMPOSE_TEMP%" "%COMPOSE_FILE%" >nul
+            goto :CREATE_ENV
+        )
+        del "%COMPOSE_TEMP%" & echo Update cancelled. & goto :eof
+    )
+
+    move /y "%COMPOSE_TEMP%" "%COMPOSE_FILE%" >nul
+    docker compose -f "%COMPOSE_FILE%" down >nul 2>nul
+    docker compose -f "%COMPOSE_FILE%" pull
+    docker compose -f "%COMPOSE_FILE%" up -d
+    goto :eof
+)
+
+if "%~1"=="remove" (
+    call :DOCKER_REMOVE
+    goto :eof
+)
+
+if "%~1"=="dev" (
+    call :DOCKER_REMOVE
+    set COMPOSE_PROJECT_NAME=playnite-web
+    set MQTT_PASSWORD=playnite
+    set APP_PORT=3000
+    call :DOCKER
+    goto :eof
+)
+
+if exist .env (
+    for /f "usebackq tokens=1,2 delims==" %%a in (".env") do set "%%a=%%b"
+    REM Check if mandatory environment variables are set
+    set "MANDATORY_VARS=COMPOSE_PROJECT_NAME DB_PASSWORD MQTT_PASSWORD APP_SECRET APP_PORT"
+    for %%V in (%MANDATORY_VARS%) do (
+        if "!%%V!"=="" (
+            echo Variable %%V is missing.
+            goto :CREATE_ENV
+        )
+    )
+    goto :DOCKER
+)
 
 :CREATE_ENV
-REM Generate a random characters for DB_PASSWORD, MQTT_PASSWORD and APP_SECRET
-for /f "delims=" %%i in ('powershell -Command "$bytes = New-Object Byte[] 24; (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes); [System.BitConverter]::ToString($bytes).Replace('-', '').ToLower()"') do set "DB_PASSWORD=%%i"
-for /f "delims=" %%i in ('powershell -Command "$bytes = New-Object Byte[] 24; (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes); [System.BitConverter]::ToString($bytes).Replace('-', '').ToLower()"') do set "MQTT_PASSWORD=%%i"
-for /f "delims=" %%i in ('powershell -Command "$bytes = New-Object Byte[] 64; (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes); [System.BitConverter]::ToString($bytes).Replace('-', '').ToLower()"') do set "APP_SECRET=%%i"
+    echo Creating environment configuration...
+    for /f "delims=" %%i in ('powershell -Command "[guid]::NewGuid().ToString('n')"') do set "DB_PASSWORD=%%i"
+    for /f "delims=" %%i in ('powershell -Command "[guid]::NewGuid().ToString('n')"') do set "MQTT_PASSWORD=%%i"
+    for /f "delims=" %%i in ('powershell -Command "[guid]::NewGuid().ToString('n')"') do set "APP_SECRET=%%i"
+    set /p COMPOSE_PROJECT_NAME="COMPOSE_PROJECT_NAME (default: playnite-web): " || set "COMPOSE_PROJECT_NAME=playnite-web"
+    set /p APP_PORT="APP_PORT (default: 3000): " || set "APP_PORT=3000"
+    set /p CSP_ORIGINS="CSP_ORIGINS (optional): "
+    set /p ADDITIONAL_ORIGINS="ADDITIONAL_ORIGINS (optional): "
 
-REM Prompt the user for optional environment variables
-set /p CSP_ORIGINS="CSP_ORIGINS (optional): "
-set /p ADDITIONAL_ORIGINS="ADDITIONAL_ORIGINS (optional): "
-set /p APP_HOST="APP_HOST (if empty defaults to localhost): "
-set /p APP_PORT="APP_PORT (if empty defaults to 3000): "
-
-if "%APP_HOST%"=="" set "APP_HOST=localhost"
-if "%APP_PORT%"=="" set "APP_PORT=3000"
-
-REM Create .env file with the provided environment variables
-(
-  echo COMPOSE_PROJECT_NAME=playnite-web
-  echo.
-  echo DB_PASSWORD=%DB_PASSWORD%
-  echo MQTT_PASSWORD=%MQTT_PASSWORD%
-  echo APP_SECRET=%APP_SECRET%
-  echo APP_PORT=%APP_PORT%
-  echo APP_HOST=%APP_HOST%
-  echo PROCESSOR_PORT=3001
-  echo DISABLE_CSP=false
-  echo CSP_ORIGINS=%CSP_ORIGINS%
-  echo ADDITIONAL_ORIGINS=%ADDITIONAL_ORIGINS%
-) > .env
-
-
-echo .env created.
-
+    (
+    echo COMPOSE_PROJECT_NAME=%COMPOSE_PROJECT_NAME%
+    echo DB_USERNAME=playnite
+    echo DB_PASSWORD=%DB_PASSWORD%
+    echo MQTT_USERNAME=playnite
+    echo MQTT_PASSWORD=%MQTT_PASSWORD%
+    echo APP_SECRET=%APP_SECRET%
+    echo APP_PORT=%APP_PORT%
+    echo DISABLE_CSP=true
+    echo CSP_ORIGINS=https://shared.akamai.steamstatic.com/,%CSP_ORIGINS%
+    echo ADDITIONAL_ORIGINS=https://shared.akamai.steamstatic.com/,%ADDITIONAL_ORIGINS%
+    ) > .env
 
 :DOCKER
-REM Create volumes
-docker volume create playnite-web_data >nul
-docker volume create playnite-web_games_assets >nul
-docker volume create playnite-web_mqtt_config >nul
-docker volume create playnite-web_mqtt_data >nul
-docker volume create playnite-web_mqtt_log >nul
+    REM set "MQTT_IMG=eclipse-mosquitto:2.0.18"
+    for /f "tokens=3 delims=:" %%a in ('findstr /C:"image: eclipse-mosquitto" "%COMPOSE_FILE%"') do (
+        set "VER=%%a"
+        set "VER=!VER: =!"
+        set "MQTT_IMG=eclipse-mosquitto:!VER!"
+    )
+    echo %MQTT_IMG%
+    docker run --rm -v %COMPOSE_PROJECT_NAME%_mqtt_config:/config %MQTT_IMG% sh -c "mosquitto_passwd -c -b /config/passwd playnite %MQTT_PASSWORD%; echo 'listener 1883' > /config/mosquitto.conf; echo 'allow_anonymous false' >> /config/mosquitto.conf; echo 'password_file /mosquitto/config/passwd' >> /config/mosquitto.conf; echo 'listener 9001' >> /config/mosquitto.conf; echo 'protocol websockets' >> /config/mosquitto.conf"
 
-REM Create MQTT password file and config
-docker run --rm -v playnite-web_mqtt_config:/config eclipse-mosquitto:2.0.18 sh -c "mosquitto_passwd -c -b /config/passwd playnite %MQTT_PASSWORD%"
-docker run --rm -v playnite-web_mqtt_config:/config eclipse-mosquitto:2.0.18 sh -c "echo 'listener 1883' > /config/mosquitto.conf ; echo 'allow_anonymous false' >> /config/mosquitto.conf ; echo 'password_file /mosquitto/config/passwd' >> /config/mosquitto.conf ; echo 'listener 9001' >> /config/mosquitto.conf ; echo 'protocol websockets' >> /config/mosquitto.conf"
+    docker compose -f "%COMPOSE_FILE%" up -d
+    start http://localhost:%APP_PORT%
+    goto :eof
 
-REM Start the application using docker-compose
-docker compose -f playnite-web.docker-compose.yaml up -d
-docker compose -f playnite-web.docker-compose.yaml ps
+:DOWNLOAD
+    curl -L -o "%~1" "%~2"
+    if not exist "%~1" echo Failed to download. & timeout /t 5 & exit /b 1
+    exit /b
 
-echo.
-echo Visit http://%APP_HOST%:%APP_PORT%
-start http://%APP_HOST%:%APP_PORT%
-timeout /t 5
-exit /b
-
-:VALIDATE
-REM Prompt the user for input and validate that it is not empty
-:LOOP
-set "input="
-for /f "delims=" %%i in ('powershell -Command "$p = read-host '%~2'; write-host $p"') do set "input=%%i"
-
-if "%input%"=="" (
-    echo [ERROR] Can not be empty!
-    goto :LOOP
-)
-set "%~1=%input%"
-goto :eof
+:DOCKER_REMOVE
+    docker compose -f "%COMPOSE_FILE%" down -v --rmi all --remove-orphans >nul 2>nul
+    del .env >nul 2>nul
+    REM del "%COMPOSE_FILE%" >nul 2>nul
+    echo Removed containers, volumes, images and .env file.
+    exit /b
