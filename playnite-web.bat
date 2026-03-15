@@ -50,19 +50,10 @@ if "%~1"=="remove" (
     goto :eof
 )
 
-if "%~1"=="dev" (
-    call :DOCKER_REMOVE
-    set COMPOSE_PROJECT_NAME=playnite-web
-    set MQTT_PASSWORD=playnite
-    set APP_PORT=3000
-    call :DOCKER_START
-    goto :eof
-)
-
 if exist .env (
     for /f "usebackq tokens=1,2 delims==" %%a in (".env") do set "%%a=%%b"
     REM Check if mandatory environment variables are set
-    set "MANDATORY_VARS=COMPOSE_PROJECT_NAME DB_PASSWORD MQTT_PASSWORD APP_SECRET APP_PORT"
+    set "MANDATORY_VARS=COMPOSE_PROJECT_NAME DB_PASSWORD MQTT_USERNAME MQTT_PASSWORD APP_SECRET APP_PORT"
     for %%V in (%MANDATORY_VARS%) do (
         if "!%%V!"=="" (
             echo Variable %%V is missing.

@@ -3,11 +3,9 @@ services:
     image: postgres:13.22
     environment:
       - POSTGRES_USER=${DB_USER:-playnite}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-playnite}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
-    networks:
-      - playnite-web_network
     restart: unless-stopped
 
   mqtt:
@@ -16,30 +14,26 @@ services:
       - mqtt_config:/mosquitto/config
       - mqtt_data:/mosquitto/data
       - mqtt_log:/mosquitto/log
-    networks:
-      - playnite-web_network
     restart: unless-stopped
 
   playnite-web:
     image: ghcr.io/andrew-codes/playnite-web-app:13-latest
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "${APP_PORT:-3000}:${APP_PORT:-3000}"
     environment:
-      - PORT=3000
-      - HOST=0.0.0.0
-      - DATABASE_URL=postgres://${DB_USER:-playnite}:${DB_PASSWORD:-playnite}@db:5432/games?schema=public&pgbouncer=true&connection_limit=${DB_CONNECTION_LIMIT:-12}
-      - SECRET=${APP_SECRET:-playnite}
+      - PORT=${APP_PORT:-3000}
+      - HOST=${APP_HOST:-localhost}
+      - DATABASE_URL=postgres://${DB_USER:-playnite}:${DB_PASSWORD}@db:5432/games?schema=public&pgbouncer=true&connection_limit=${DB_CONNECTION_LIMIT:-12}
+      - SECRET=${APP_SECRET}
       - DISABLE_CSP=${DISABLE_CSP:-false}
-      - CSP_ORIGINS=${CSP_ORIGINS:-}
-      - ADDITIONAL_ORIGINS=${ADDITIONAL_ORIGINS:-}
+      - CSP_ORIGINS=${CSP_ORIGINS}
+      - ADDITIONAL_ORIGINS=${ADDITIONAL_ORIGINS}
       - MQTT_HOST=mqtt
       - MQTT_PORT=1883
-      - MQTT_USERNAME=${MQTT_USERNAME:-playnite}
-      - MQTT_PASSWORD=${MQTT_PASSWORD:-playnite}
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
     volumes:
       - games_assets:/opt/playnite-web-app/public/cover-art
-    networks:
-      - playnite-web_network
     depends_on:
       - db
       - mqtt
@@ -50,23 +44,16 @@ services:
     environment:
       - MQTT_HOST=mqtt
       - MQTT_PORT=1883
-      - MQTT_USERNAME=${MQTT_USERNAME:-playnite}
-      - MQTT_PASSWORD=${MQTT_PASSWORD:-playnite}
-      - DATABASE_URL=postgres://${DB_USER:-playnite}:${DB_PASSWORD:-playnite}@db:5432/games?schema=public
-      - PORT=3001
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - DATABASE_URL=postgres://${DB_USER:-playnite}:${DB_PASSWORD}@db:5432/games?schema=public
+      - PORT=${PROCESSOR_PORT:-3001}
       - COVER_ART_PATH=/opt/playnite-web/game-assets/cover-art
     volumes:
       - games_assets:/opt/playnite-web/game-assets/cover-art
-    networks:
-      - playnite-web_network
     depends_on:
       - playnite-web
     restart: unless-stopped
-
-networks:
-  playnite-web_network:
-    name: ${NETWORK:-playnite-web_network}
-    driver: bridge
 
 volumes:
   games_assets:
