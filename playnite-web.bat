@@ -14,6 +14,11 @@ set "COMPOSE_URL=https://public.home.playniteweb.com/wiki/download/attachments/2
 
 if not exist "%COMPOSE_FILE%" call :DOWNLOAD "%COMPOSE_FILE%" "%COMPOSE_URL%"
 
+if "%~1"=="restart" (
+    docker compose -f "%COMPOSE_FILE%" up -d
+    goto :eof
+)
+
 if "%~1"=="clean" (
     call :DOCKER_REMOVE
     call :DOWNLOAD "%COMPOSE_FILE%" "%COMPOSE_URL%"
