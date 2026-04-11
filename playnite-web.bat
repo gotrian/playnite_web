@@ -27,7 +27,7 @@ if "%~1"=="clean" (
 
 if "%~1"=="update" (
     if not exist .env goto :CREATE_ENV
-    call :DOWNLOAD "%COMPOSE_TEMP%" "%COMPOSE_URL%"
+    REM call :DOWNLOAD "%COMPOSE_TEMP%" "%COMPOSE_URL%"
     
     set "MAJOR_CHANGE=false"
 
