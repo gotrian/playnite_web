@@ -58,7 +58,7 @@ if "%~1"=="remove" (
 if exist .env (
     for /f "usebackq tokens=1,2 delims==" %%a in (".env") do set "%%a=%%b"
     REM Check if mandatory environment variables are set
-    set "MANDATORY_VARS=COMPOSE_PROJECT_NAME DB_PASSWORD MQTT_USERNAME MQTT_PASSWORD APP_SECRET APP_PORT"
+    set "MANDATORY_VARS=COMPOSE_PROJECT_NAME DB_PASSWORD MQTT_USERNAME MQTT_PASSWORD APP_SECRET APP_PORT POSTGRES_VERSION MQTT_VERSION PLAYNITE_WEB_VERSION PLAYNITE_SYNC_LIBRARY_PROCESSOR_VERSION"
     for %%V in (%MANDATORY_VARS%) do (
         if "!%%V!"=="" (
             echo Variable %%V is missing.
@@ -89,6 +89,10 @@ if exist .env (
     echo DISABLE_CSP=true
     echo CSP_ORIGINS=https://shared.akamai.steamstatic.com/,%CSP_ORIGINS%
     echo ADDITIONAL_ORIGINS=https://shared.akamai.steamstatic.com/,%ADDITIONAL_ORIGINS%
+    echo POSTGRES_VERSION=13.22
+    echo MQTT_VERSION=2.0.18
+    echo PLAYNITE_WEB_VERSION=13-latest
+    echo PLAYNITE_SYNC_LIBRARY_PROCESSOR_VERSION=13-latest
     ) > .env
 
 :DOCKER_START

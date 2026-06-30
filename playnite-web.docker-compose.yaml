@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:13.22
+    image: postgres:${POSTGRES_VERSION}
     environment:
       - POSTGRES_USER=${DB_USER:-playnite}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
 
   mqtt:
-    image: eclipse-mosquitto:2.0.18
+    image: eclipse-mosquitto:${MQTT_VERSION}
     volumes:
       - mqtt_config:/mosquitto/config
       - mqtt_data:/mosquitto/data
@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
 
   playnite-web:
-    image: ghcr.io/andrew-codes/playnite-web-app:13-latest
+    image: ghcr.io/andrew-codes/playnite-web-app:${PLAYNITE_WEB_VERSION}
     ports:
     - "${APP_PORT:-3000}:${APP_PORT:-3000}"
     environment:
@@ -40,7 +40,7 @@ services:
     restart: unless-stopped
 
   playnite-web-sync-library-processor:
-    image: ghcr.io/andrew-codes/sync-library-processor:13-latest
+    image: ghcr.io/andrew-codes/sync-library-processor:${PLAYNITE_SYNC_LIBRARY_PROCESSOR_VERSION}
     environment:
       - MQTT_HOST=mqtt
       - MQTT_PORT=1883
