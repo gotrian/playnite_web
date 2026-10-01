@@ -46,8 +46,7 @@ if "%~1"=="remove" (
     goto :REMOVE
 )
 
-echo Available commands: start, stop, restart, update, remove
-goto :eof
+echo Playnite Web automation script by GG started.
 
 :START
 if exist .env (
@@ -98,10 +97,11 @@ if exist .env (
 
     docker compose -f playnite-web.docker-compose.yaml up -d
     start http://localhost:%APP_PORT%
+    pause
     goto :eof
 
 :REMOVE
     docker compose -f playnite-web.docker-compose.yaml down -v --rmi all --remove-orphans >nul 2>nul
-    move /y .env .env.bak >nul 2>nul
-    echo Removed containers, volumes, images. The .env file has been backed up to .env.bak
+    REM  move /y .env .env.bak >nul 2>nul
+    echo Removed containers, volumes, images.
     goto :eof

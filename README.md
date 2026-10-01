@@ -1,7 +1,10 @@
-This is an automation script for Playnite Web
-Prerequisite: Docker installed, Playnite plugins installed
+This is an automation script for Playnite Web by andrew-codes:
+https://github.com/andrew-codes/playnite-web
+
 Run the .bat file:
-- help command shows available commands
-- Without command it checks if .env file is present, if not asks for input and creates it
-- Starts docker compose
-- From the .env copy password to Playnite plugin
+- Available commands: start, stop, restart, update, remove
+- Without command it defaults to 'start' command
+- Checks if .env is present, if not creates it
+- Sets MQTT config
+- Start docker containers and opens the app in your default browser
+- From the .env copy MQTT password to Playnite MQTT plugin
