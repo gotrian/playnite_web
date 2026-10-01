@@ -94,7 +94,7 @@ if exist .env (
     goto :START
 
 :DOCKER
-    docker run --rm -v %COMPOSE_PROJECT_NAME%_mqtt_config:/config %MQTT_VERSION% sh -c "mosquitto_passwd -c -b /config/passwd playnite %MQTT_PASSWORD%; echo 'listener 1883' > /config/mosquitto.conf; echo 'allow_anonymous false' >> /config/mosquitto.conf; echo 'password_file /mosquitto/config/passwd' >> /config/mosquitto.conf; echo 'listener 9001' >> /config/mosquitto.conf; echo 'protocol websockets' >> /config/mosquitto.conf"
+    docker run --rm -v %COMPOSE_PROJECT_NAME%_mqtt_config:/config eclipse-mosquitto:%MQTT_VERSION% sh -c "mosquitto_passwd -c -b /config/passwd playnite %MQTT_PASSWORD%; echo 'listener 1883' > /config/mosquitto.conf; echo 'allow_anonymous false' >> /config/mosquitto.conf; echo 'password_file /mosquitto/config/passwd' >> /config/mosquitto.conf; echo 'listener 9001' >> /config/mosquitto.conf; echo 'protocol websockets' >> /config/mosquitto.conf"
 
     docker compose -f playnite-web.docker-compose.yaml up -d
     start http://localhost:%APP_PORT%
