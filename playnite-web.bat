@@ -1,20 +1,36 @@
 @echo off
 setlocal enabledelayedexpansion
 
-cd /d "%~dp0"
-
-if "%~1"=="init" (
-    goto :INIT
+REM Check if Docker is installed
+docker --version >nul 2>nul
+if errorlevel 1 (
+    echo Docker is not installed or not in PATH. Please install Docker and try again.
+    exit /b
 )
 
-if "%~1"=="restart" (
-    docker compose -f playnite-web.docker-compose.yaml up -d
+REM Check if Docker Compose is installed
+docker compose version >nul 2>nul
+if errorlevel 1 (
+    echo Docker Compose is not installed or not in PATH. Please install Docker Compose and try again.
+    exit /b
+)
+
+
+cd /d "%~dp0"
+
+if "%~1"=="start" (
+    goto :START
+)
+
+if "%~1"=="stop" (
+    docker compose -f playnite-web.docker-compose.yaml down >nul 2>nul
     goto :eof
 )
 
-if "%~1"=="clean" (
-    call :DOCKER_REMOVE
-    goto :CREATE_ENV
+if "%~1"=="restart" (
+    docker compose -f playnite-web.docker-compose.yaml down >nul 2>nul
+    docker compose -f playnite-web.docker-compose.yaml up -d
+    goto :eof
 )
 
 if "%~1"=="update" (
@@ -25,27 +41,27 @@ if "%~1"=="update" (
 )
 
 if "%~1"=="remove" (
-    call :DOCKER_REMOVE
+    call :REMOVE
     goto :eof
 )
 
-echo Available commands: init, restart, clean, update, remove
+echo Available commands: start, stop, restart, update, remove
 goto :eof
 
-:INIT
+:START
 if exist .env (
     REM Check if mandatory environment variables are set
     for /f "usebackq tokens=1,2 delims==" %%a in (".env") do set "%%a=%%b"
     set "MANDATORY_VARS=COMPOSE_PROJECT_NAME DB_PASSWORD MQTT_USERNAME MQTT_PASSWORD APP_SECRET APP_PORT POSTGRES_VERSION MQTT_VERSION PLAYNITE_WEB_VERSION PLAYNITE_SYNC_LIBRARY_PROCESSOR_VERSION"
     for %%V in (%MANDATORY_VARS%) do (
         if "!%%V!"=="" (
-            echo Environment configuration found, but variable %%V is missing!
+            echo Environment configuration found, but variable %%V is missing! The .env file has been backed up to .env.bak
             move /y .env .env.bak >nul 2>nul
             goto :CREATE_ENV
         )
     )
     echo Environment configuration found. Starting Docker containers...
-    goto :DOCKER_START
+    goto :DOCKER
 )
 
 :CREATE_ENV
@@ -74,16 +90,17 @@ if exist .env (
     echo PLAYNITE_WEB_VERSION=13-latest
     echo PLAYNITE_SYNC_LIBRARY_PROCESSOR_VERSION=13-latest
     ) > .env
+    goto :START
 
-:DOCKER_START
+:DOCKER
     docker run --rm -v %COMPOSE_PROJECT_NAME%_mqtt_config:/config %MQTT_VERSION% sh -c "mosquitto_passwd -c -b /config/passwd playnite %MQTT_PASSWORD%; echo 'listener 1883' > /config/mosquitto.conf; echo 'allow_anonymous false' >> /config/mosquitto.conf; echo 'password_file /mosquitto/config/passwd' >> /config/mosquitto.conf; echo 'listener 9001' >> /config/mosquitto.conf; echo 'protocol websockets' >> /config/mosquitto.conf"
 
     docker compose -f playnite-web.docker-compose.yaml up -d
     start http://localhost:%APP_PORT%
     goto :eof
 
-:DOCKER_REMOVE
+:REMOVE
     docker compose -f playnite-web.docker-compose.yaml down -v --rmi all --remove-orphans >nul 2>nul
-    del .env >nul 2>nul
-    echo Removed containers, volumes, images and .env file.
+    move /y .env .env.bak >nul 2>nul
+    echo Removed containers, volumes, images. The .env file has been backed up to .env.bak
     exit /b
