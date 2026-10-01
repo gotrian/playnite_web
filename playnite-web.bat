@@ -4,14 +4,16 @@ setlocal enabledelayedexpansion
 REM Check if Docker is installed
 docker --version >nul 2>nul
 if errorlevel 1 (
-    echo Docker is not installed or not in PATH. Please install Docker and try again.
+    echo Docker is not installed?
+    pause
     exit /b
 )
 
 REM Check if Docker Compose is installed
 docker compose version >nul 2>nul
 if errorlevel 1 (
-    echo Docker Compose is not installed or not in PATH. Please install Docker Compose and try again.
+    echo Docker Compose is not installed?
+    pause
     exit /b
 )
 
@@ -97,11 +99,9 @@ if exist .env (
 
     docker compose -f playnite-web.docker-compose.yaml up -d
     start http://localhost:%APP_PORT%
-    pause
     goto :eof
 
 :REMOVE
     docker compose -f playnite-web.docker-compose.yaml down -v --rmi all --remove-orphans >nul 2>nul
-    REM  move /y .env .env.bak >nul 2>nul
     echo Removed containers, volumes, images.
     goto :eof
