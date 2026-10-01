@@ -29,20 +29,21 @@ if "%~1"=="stop" (
 
 if "%~1"=="restart" (
     docker compose -f playnite-web.docker-compose.yaml down >nul 2>nul
-    docker compose -f playnite-web.docker-compose.yaml up -d
-    goto :eof
+    goto :START
 )
 
 if "%~1"=="update" (
     docker compose -f playnite-web.docker-compose.yaml down >nul 2>nul
+    if not exist .env (
+        echo No environment configuration found.
+        goto :ENV
+    )
     docker compose -f playnite-web.docker-compose.yaml pull
-    docker compose -f playnite-web.docker-compose.yaml up -d
-    goto :eof
+    goto :START
 )
 
 if "%~1"=="remove" (
-    call :REMOVE
-    goto :eof
+    goto :REMOVE
 )
 
 echo Available commands: start, stop, restart, update, remove
@@ -57,14 +58,14 @@ if exist .env (
         if "!%%V!"=="" (
             echo Environment configuration found, but variable %%V is missing! The .env file has been backed up to .env.bak
             move /y .env .env.bak >nul 2>nul
-            goto :CREATE_ENV
+            goto :ENV
         )
     )
     echo Environment configuration found. Starting Docker containers...
     goto :DOCKER
 )
 
-:CREATE_ENV
+:ENV
     echo Creating environment configuration...
     for /f "delims=" %%i in ('powershell -Command "[guid]::NewGuid().ToString('n')"') do set "DB_PASSWORD=%%i"
     for /f "delims=" %%i in ('powershell -Command "[guid]::NewGuid().ToString('n')"') do set "MQTT_PASSWORD=%%i"
@@ -103,4 +104,4 @@ if exist .env (
     docker compose -f playnite-web.docker-compose.yaml down -v --rmi all --remove-orphans >nul 2>nul
     move /y .env .env.bak >nul 2>nul
     echo Removed containers, volumes, images. The .env file has been backed up to .env.bak
-    exit /b
+    goto :eof
